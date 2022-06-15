@@ -145,7 +145,6 @@ public class JsonSchemas {
    * @param consumer - consumer to be called at each node. it accepts the current node and the path to
    *        the node from the root of the object passed at the root level invocation
    */
-  // todo (cgardens) - replace with easier to understand traversal logic from SecretsHelper.
   private static void traverseJsonSchemaInternal(final JsonNode jsonSchemaNode,
                                                  final String path,
                                                  final BiConsumer<JsonNode, String> consumer) {
