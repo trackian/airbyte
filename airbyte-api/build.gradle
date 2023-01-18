@@ -1,7 +1,7 @@
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
-    id "org.openapi.generator" version "5.2.0"
+    id "org.openapi.generator" version "6.2.1"
     id "java-library"
 }
 
@@ -22,7 +22,7 @@ task generateApiServerLegacy(type: GenerateTask) {
     invokerPackage = "io.airbyte.api.invoker.generated"
     modelPackage = "io.airbyte.api.model.generated"
 
-    importMappings = [
+    schemaMappings = [
             'OAuthConfiguration'                : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceDefinitionSpecification'     : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceConfiguration'               : 'com.fasterxml.jackson.databind.JsonNode',
@@ -64,7 +64,7 @@ task generateApiServer(type: GenerateTask) {
     invokerPackage = "io.airbyte.api.invoker.generated"
     modelPackage = "io.airbyte.api.model.generated"
 
-    importMappings = [
+    schemaMappings = [
             'OAuthConfiguration'                : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceDefinitionSpecification'     : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceConfiguration'               : 'com.fasterxml.jackson.databind.JsonNode',
@@ -111,7 +111,7 @@ task generateApiClient(type: GenerateTask) {
     invokerPackage = "io.airbyte.api.client.invoker.generated"
     modelPackage = "io.airbyte.api.client.model.generated"
 
-    importMappings = [
+    schemaMappings = [
             'OAuthConfiguration'                : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceDefinitionSpecification'     : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceConfiguration'               : 'com.fasterxml.jackson.databind.JsonNode',
@@ -145,7 +145,7 @@ task generateApiDocs(type: GenerateTask) {
     invokerPackage = "io.airbyte.api.client.invoker.generated"
     modelPackage = "io.airbyte.api.client.model.generated"
 
-    importMappings = [
+    schemaMappings = [
             'OAuthConfiguration'                : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceDefinitionSpecification'     : 'com.fasterxml.jackson.databind.JsonNode',
             'SourceConfiguration'               : 'com.fasterxml.jackson.databind.JsonNode',

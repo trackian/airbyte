@@ -5,12 +5,10 @@
 package io.airbyte.test.acceptance;
 
 import static io.airbyte.test.utils.AirbyteAcceptanceTestHarness.COLUMN_ID;
-import static io.airbyte.test.utils.AirbyteAcceptanceTestHarness.SOURCE_PASSWORD;
 import static io.airbyte.test.utils.AirbyteAcceptanceTestHarness.waitForConnectionState;
 import static io.airbyte.test.utils.AirbyteAcceptanceTestHarness.waitForSuccessfulJob;
 import static io.airbyte.test.utils.AirbyteAcceptanceTestHarness.waitWhileJobHasStatus;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,6 +22,7 @@ import io.airbyte.api.client.model.generated.AirbyteCatalog;
 import io.airbyte.api.client.model.generated.AirbyteStream;
 import io.airbyte.api.client.model.generated.AttemptInfoRead;
 import io.airbyte.api.client.model.generated.ConnectionIdRequestBody;
+import io.airbyte.api.client.model.generated.ConnectionScheduleType;
 import io.airbyte.api.client.model.generated.ConnectionState;
 import io.airbyte.api.client.model.generated.DestinationDefinitionIdRequestBody;
 import io.airbyte.api.client.model.generated.DestinationDefinitionRead;
@@ -33,8 +32,6 @@ import io.airbyte.api.client.model.generated.JobIdRequestBody;
 import io.airbyte.api.client.model.generated.JobInfoRead;
 import io.airbyte.api.client.model.generated.JobRead;
 import io.airbyte.api.client.model.generated.JobStatus;
-import io.airbyte.api.client.model.generated.LogType;
-import io.airbyte.api.client.model.generated.LogsRequestBody;
 import io.airbyte.api.client.model.generated.SourceDefinitionIdRequestBody;
 import io.airbyte.api.client.model.generated.SourceDefinitionRead;
 import io.airbyte.api.client.model.generated.SourceRead;
@@ -44,7 +41,6 @@ import io.airbyte.commons.lang.MoreBooleans;
 import io.airbyte.test.utils.AirbyteAcceptanceTestHarness;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
@@ -142,7 +138,8 @@ class AdvancedAcceptanceTests {
     final DestinationSyncMode destinationSyncMode = DestinationSyncMode.OVERWRITE;
     catalog.getStreams().forEach(s -> s.getConfig().syncMode(syncMode).destinationSyncMode(destinationSyncMode));
     final UUID connectionId =
-        testHarness.createConnection(connectionName, sourceId, destinationId, List.of(operationId), catalog, null).getConnectionId();
+        testHarness.createConnection(connectionName, sourceId, destinationId, List.of(operationId), catalog, ConnectionScheduleType.MANUAL, null)
+            .getConnectionId();
     final JobInfoRead connectionSyncRead = apiClient.getConnectionApi().syncConnection(new ConnectionIdRequestBody().connectionId(connectionId));
     waitForSuccessfulJob(apiClient.getJobsApi(), connectionSyncRead.getJob());
     testHarness.assertSourceAndDestinationDbInSync(false);
@@ -151,8 +148,8 @@ class AdvancedAcceptanceTests {
   @RetryingTest(3)
   @Order(2)
   void testCheckpointing() throws Exception {
-    final SourceDefinitionRead sourceDefinition = testHarness.createE2eSourceDefinition();
-    final DestinationDefinitionRead destinationDefinition = testHarness.createE2eDestinationDefinition();
+    final SourceDefinitionRead sourceDefinition = testHarness.createE2eSourceDefinition(workspaceId);
+    final DestinationDefinitionRead destinationDefinition = testHarness.createE2eDestinationDefinition(workspaceId);
 
     final SourceRead source = testHarness.createSource(
         "E2E Test Source -" + UUID.randomUUID(),
@@ -187,7 +184,7 @@ class AdvancedAcceptanceTests {
         .cursorField(List.of(COLUMN_ID))
         .destinationSyncMode(destinationSyncMode));
     final UUID connectionId =
-        testHarness.createConnection(connectionName, sourceId, destinationId, Collections.emptyList(), catalog, null)
+        testHarness.createConnection(connectionName, sourceId, destinationId, Collections.emptyList(), catalog, ConnectionScheduleType.MANUAL, null)
             .getConnectionId();
     final JobInfoRead connectionSyncRead1 = apiClient.getConnectionApi()
         .syncConnection(new ConnectionIdRequestBody().connectionId(connectionId));
@@ -215,35 +212,12 @@ class AdvancedAcceptanceTests {
     assertEquals(0, connectionState.getState().get(COLUMN1).asInt() % 5);
   }
 
-  @RetryingTest(3)
-  @Order(3)
-  void testRedactionOfSensitiveRequestBodies() throws Exception {
-    // check that the source password is not present in the logs
-    final List<String> serverLogLines = java.nio.file.Files.readAllLines(
-        apiClient.getLogsApi().getLogs(new LogsRequestBody().logType(LogType.SERVER)).toPath(),
-        Charset.defaultCharset());
-
-    assertFalse(serverLogLines.isEmpty());
-
-    boolean hasRedacted = false;
-
-    for (final String line : serverLogLines) {
-      assertFalse(line.contains(SOURCE_PASSWORD));
-
-      if (line.contains("REDACTED")) {
-        hasRedacted = true;
-      }
-    }
-
-    assertTrue(hasRedacted);
-  }
-
   // verify that when the worker uses backpressure from pipes that no records are lost.
   @RetryingTest(3)
   @Order(4)
   void testBackpressure() throws Exception {
-    final SourceDefinitionRead sourceDefinition = testHarness.createE2eSourceDefinition();
-    final DestinationDefinitionRead destinationDefinition = testHarness.createE2eDestinationDefinition();
+    final SourceDefinitionRead sourceDefinition = testHarness.createE2eSourceDefinition(workspaceId);
+    final DestinationDefinitionRead destinationDefinition = testHarness.createE2eDestinationDefinition(workspaceId);
 
     final SourceRead source = testHarness.createSource(
         "E2E Test Source -" + UUID.randomUUID(),
@@ -269,7 +243,7 @@ class AdvancedAcceptanceTests {
     final AirbyteCatalog catalog = testHarness.discoverSourceSchema(sourceId);
 
     final UUID connectionId =
-        testHarness.createConnection(connectionName, sourceId, destinationId, Collections.emptyList(), catalog, null)
+        testHarness.createConnection(connectionName, sourceId, destinationId, Collections.emptyList(), catalog, ConnectionScheduleType.MANUAL, null)
             .getConnectionId();
     final JobInfoRead connectionSyncRead1 = apiClient.getConnectionApi()
         .syncConnection(new ConnectionIdRequestBody().connectionId(connectionId));

@@ -1,17 +1,18 @@
 import React, { Suspense, useCallback, useRef, useState } from "react";
 import styled from "styled-components";
 
-import { Spinner } from "components";
+import { Spinner } from "components/ui/Spinner";
 
-import { SynchronousJobReadWithStatus } from "core/request/LogsRequestError";
-import { JobsWithJobs } from "pages/ConnectionPage/pages/ConnectionItemPage/components/JobsList";
+import { SynchronousJobRead } from "core/request/AirbyteClient";
 
-import { AttemptRead, CheckConnectionReadStatus, JobStatus } from "../../core/request/AirbyteClient";
 import { useAttemptLink } from "./attemptLinkUtils";
 import ContentWrapper from "./components/ContentWrapper";
 import ErrorDetails from "./components/ErrorDetails";
-import JobLogs from "./components/JobLogs";
+import { JobLogs } from "./components/JobLogs";
 import MainInfo from "./components/MainInfo";
+import styles from "./JobItem.module.scss";
+import { JobsWithJobs } from "./types";
+import { didJobSucceed, getJobAttempts, getJobId } from "./utils";
 
 const Item = styled.div<{ isFailed: boolean }>`
   border-bottom: 1px solid ${({ theme }) => theme.greyColor20};
@@ -23,32 +24,9 @@ const Item = styled.div<{ isFailed: boolean }>`
   }
 `;
 
-const LoadLogs = styled.div`
-  background: ${({ theme }) => theme.whiteColor};
-  text-align: center;
-  padding: 6px 0;
-  min-height: 58px;
-`;
-
 interface JobItemProps {
-  job: SynchronousJobReadWithStatus | JobsWithJobs;
+  job: SynchronousJobRead | JobsWithJobs;
 }
-
-const didJobSucceed = (job: SynchronousJobReadWithStatus | JobsWithJobs) => {
-  return getJobStatus(job) !== "failed";
-};
-
-export const getJobStatus: (
-  job: SynchronousJobReadWithStatus | JobsWithJobs
-) => JobStatus | CheckConnectionReadStatus = (job) => {
-  return "status" in job ? job.status : job.job.status;
-};
-
-export const getJobAttemps: (job: SynchronousJobReadWithStatus | JobsWithJobs) => AttemptRead[] | undefined = (job) => {
-  return "attempts" in job ? job.attempts : undefined;
-};
-
-export const getJobId = (job: SynchronousJobReadWithStatus | JobsWithJobs) => ("id" in job ? job.id : job.job.id);
 
 export const JobItem: React.FC<JobItemProps> = ({ job }) => {
   const { jobId: linkedJobId } = useAttemptLink();
@@ -59,7 +37,7 @@ export const JobItem: React.FC<JobItemProps> = ({ job }) => {
   const didSucceed = didJobSucceed(job);
 
   const onExpand = () => {
-    setIsOpen(!isOpen);
+    setIsOpen((prevIsOpen) => !prevIsOpen);
   };
 
   const onDetailsToggled = useCallback(() => {
@@ -74,19 +52,19 @@ export const JobItem: React.FC<JobItemProps> = ({ job }) => {
 
   return (
     <Item isFailed={!didSucceed} ref={scrollAnchor}>
-      <MainInfo isOpen={isOpen} isFailed={!didSucceed} onExpand={onExpand} job={job} attempts={getJobAttemps(job)} />
+      <MainInfo isOpen={isOpen} isFailed={!didSucceed} onExpand={onExpand} job={job} attempts={getJobAttempts(job)} />
       <ContentWrapper isOpen={isOpen} onToggled={onDetailsToggled}>
         <div>
           <Suspense
             fallback={
-              <LoadLogs>
-                <Spinner />
-              </LoadLogs>
+              <div className={styles.logsLoadingContainer}>
+                <Spinner small />
+              </div>
             }
           >
             {isOpen && (
               <>
-                <ErrorDetails attempts={getJobAttemps(job)} />
+                <ErrorDetails attempts={getJobAttempts(job)} />
                 <JobLogs job={job} jobIsFailed={!didSucceed} />
               </>
             )}
